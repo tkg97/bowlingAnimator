@@ -10,8 +10,8 @@ using namespace glm;
 
 #include "controls.hpp"
 
-glm::mat4 ViewMatrix;
-glm::mat4 ProjectionMatrix;
+static glm::mat4 ViewMatrix;
+static glm::mat4 ProjectionMatrix;
 
 glm::mat4 getViewMatrix(){
 	return ViewMatrix;

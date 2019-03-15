@@ -135,9 +135,10 @@
     <ClCompile Include="..\Dependencies\common\objloader.cpp" />
     <ClCompile Include="..\Dependencies\common\shader.cpp" />
     <ClCompile Include="..\Dependencies\common\texture.cpp" />
-    <ClCompile Include="src\HeirarchicalModel.cpp" />
-    <ClCompile Include="src\HeirarchyInputParser.cpp" />
+    <ClCompile Include="src\HierarchicalModel.cpp" />
+    <ClCompile Include="src\HierarchyInputParser.cpp" />
     <ClCompile Include="src\jsoncpp.cpp" />
+    <ClCompile Include="src\openGLrendering.cpp" />
     <ClCompile Include="src\Source.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -145,8 +146,9 @@
     <ClInclude Include="..\Dependencies\common\objloader.hpp" />
     <ClInclude Include="..\Dependencies\common\shader.hpp" />
     <ClInclude Include="..\Dependencies\common\texture.hpp" />
-    <ClInclude Include="headers\HeirarchicalModel.h" />
-    <ClInclude Include="headers\HeirarchyInputParser.h" />
+    <ClInclude Include="headers\HierarchicalModel.h" />
+    <ClInclude Include="headers\Hierarchy.h" />
+    <ClInclude Include="headers\HierarchyInputParser.h" />
     <ClInclude Include="headers\openGLrendering.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
