@@ -19,7 +19,7 @@ glm::vec3 lightPos1, lightPos2;
 int main(void)
 {
 	Hierarchy inputHierarchy = parseJsonHierarchy("inputFiles/opengl/HierarchyInput.json");
-	
+
 	initializeOpenGL();
 	resetControls();
 
@@ -41,6 +41,7 @@ int main(void)
 
 	// Load the texture
 	GLuint TextureCube = loadBMP_custom("inputFiles/Opengl/texture_red.bmp");
+	GLuint TextureOther = loadBMP_custom("inputFiles/Opengl/skin_texture.bmp");
 
 	// Get a handle for our "myTextureSampler" uniform
 	TextureID = glGetUniformLocation(programID, "myTextureSampler");
@@ -59,7 +60,7 @@ int main(void)
 	setupBuffer(uvbufferCube, (uvsCube.size() * sizeof(glm::vec2)), (&uvsCube[0]));
 	setupBuffer(normalbufferCube, (normalsCube.size() * sizeof(glm::vec3)), (&normalsCube[0]));
 
-	lightPos1 = glm::vec3(0, 0, -4);
+	lightPos1 = glm::vec3(0, 0, +4);
 	lightPos2 = glm::vec3(2.5, 3, -2.5);
 
 	do {
@@ -76,13 +77,19 @@ int main(void)
 
 		std::vector<glm::mat4> modelMatrices = computeModelMatrices(inputHierarchy);
 
-		std::vector<glm::mat4>::iterator iter = modelMatrices.begin();
+		std::vector<glm::mat4>::iterator iterModel = modelMatrices.begin();
+		std::vector<glm::mat4>::iterator iterScale = inputHierarchy.scaleMatrices.begin();
 
-		while (iter != modelMatrices.end()) {
-			ModelMatrix = (*iter);
+		int count = 0;
+
+		while (iterModel != modelMatrices.end()) {
+			ModelMatrix = (*iterModel) * (*iterScale);
 			MVP = ProjectionMatrix * ViewMatrix * (ModelMatrix);
-			render(TextureCube, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
-			++iter;
+			if(count==0) render(TextureCube, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
+			else render(TextureOther, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
+			++iterModel;
+			++iterScale;
+			count++;
 		}
 
 		glfwSwapBuffers(window);

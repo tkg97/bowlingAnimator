@@ -1,6 +1,7 @@
 #pragma once
 #include "HierarchyInputParser.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <fstream>
 #include <iostream>
 using namespace std;
@@ -20,6 +21,41 @@ glm::mat4 parseJsonArrayIntoMatrix(const Json::Value& matrix) noexcept(false) {
 	}
 	glm::mat4 modelMatrix = glm::make_mat4(&data[0]);
 	return modelMatrix;
+}
+
+glm::vec3 parseJsonArrayIntoVector(const Json::Value& data) noexcept(false) {
+	if (data.isArray() == false || data.size() != 3) {
+		throw exception("Please ensure that transformation data is provided in valid format");
+	}
+	vector<double> dataVector;
+	for (int i = 0;i < 3;i++) {
+		dataVector.push_back(data[i].asDouble());
+	}
+	glm::vec3 dataVec = glm::make_vec3(&dataVector[0]);
+	return dataVec;
+}
+
+glm::mat4 parseJsonArrayIntoTranslationMatrix(const Json::Value& parameters) noexcept(false) {
+	glm::vec3 translationData = parseJsonArrayIntoVector(parameters);
+	glm::mat4 translationMatrix;
+	translationMatrix = glm::translate(translationMatrix, translationData);
+	return translationMatrix;
+}
+
+glm::mat4 parseJsonArrayIntoScalingMatrix(const Json::Value & parameters) noexcept(false) {
+	glm::vec3 scaleData = parseJsonArrayIntoVector(parameters);
+	glm::mat4 scaleMatrix;
+	scaleMatrix = glm::scale(scaleMatrix, scaleData);
+	return scaleMatrix;
+}
+
+glm::mat4 parseJsonArrayIntoRotationMatrix(const Json::Value& parameters) noexcept(false) {
+	glm::vec3 rotationData = parseJsonArrayIntoVector(parameters);
+	glm::mat4 rotationMatrix;
+	rotationMatrix = glm::rotate(rotationMatrix, rotationData[0], { 1,0,0 });
+	rotationMatrix = glm::rotate(rotationMatrix, rotationData[1], { 0,1,0 });
+	rotationMatrix = glm::rotate(rotationMatrix, rotationData[2], { 0,0,1 });
+	return rotationMatrix;
 }
 
 void parseJsonArrayIntoHashMap(const Json::Value &allParts, unordered_map<string, int>& data) noexcept(false) {
@@ -51,11 +87,20 @@ void parseJsonArrayIntoAdjList(const unordered_map<string, int>& bodyParts, cons
 	}
 }
 
-void parseJsonValueIntoMatrices(const unordered_map<string, int>& bodyParts, vector<glm::mat4>& modelMatrices, const Json::Value& parameters) noexcept(false) {
+void parseJsonValueIntoMatrices(const unordered_map<string, int>& bodyParts, vector<glm::mat4>& initialTranslationMatrices, vector<glm::mat4>& rotationMatrices,
+	vector<glm::mat4>& finalTranslationMatrices, vector<glm::mat4>& scaleMatrices, const Json::Value& parameters) noexcept(false) {
 	unordered_map<string, int>::const_iterator iter = bodyParts.begin();
 	while (iter != bodyParts.end()) {
-		Json::Value matrix = parameters.get(iter->first, {});
-		modelMatrices[iter->second] = parseJsonArrayIntoMatrix(matrix);
+		Json::Value matrixParameters = parameters.get(iter->first, {});
+		if (matrixParameters.empty()) throw exception("Please make sure parameters are in valid format");
+		Json::Value initialTranslationParameters = matrixParameters.get("InitialTranslation", {});
+		Json::Value finalTranslationParameters = matrixParameters.get("FinalTranslation", {});
+		Json::Value rotationParameters = matrixParameters.get("Rotation", {});
+		Json::Value scaleParameters = matrixParameters.get("GlobalScaling", {});
+		initialTranslationMatrices[iter->second] = parseJsonArrayIntoTranslationMatrix(initialTranslationParameters);
+		rotationMatrices[iter->second] = parseJsonArrayIntoRotationMatrix(rotationParameters);
+		finalTranslationMatrices[iter->second] = parseJsonArrayIntoTranslationMatrix(finalTranslationParameters);
+		scaleMatrices[iter->second] = parseJsonArrayIntoScalingMatrix(scaleParameters);
 		++iter;
 	}
 }
@@ -66,7 +111,10 @@ Hierarchy parseJsonHierarchy(string path) {
 	int headNode;
 	unordered_map<string, int> bodyParts;
 	vector< vector<int> > adjList;
-	vector< glm::mat4 > modelMatrices;
+	vector< glm::mat4 > initialTranslationMatrices;
+	vector< glm::mat4 > finalTranslationMatrices;
+	vector< glm::mat4 > rotationMatrices;
+	vector<glm::mat4> scaleMatrices;
 
 	Json::Reader reader;
 	Json::Value rootValue;
@@ -77,7 +125,10 @@ Hierarchy parseJsonHierarchy(string path) {
 			Json::Value allParts = rootValue.get("Parts", {});
 			parseJsonArrayIntoHashMap(allParts, bodyParts);
 			adjList.resize(allParts.size());
-			modelMatrices.resize(allParts.size());
+			initialTranslationMatrices.resize(allParts.size());
+			finalTranslationMatrices.resize(allParts.size());
+			rotationMatrices.resize(allParts.size());
+			scaleMatrices.resize(allParts.size());
 
 			// Parse Root
 			string headPart = rootValue.get("Root", "").asString();
@@ -92,7 +143,7 @@ Hierarchy parseJsonHierarchy(string path) {
 
 			// Parse Parameters
 			Json::Value parameters = rootValue.get("Parameters", {});
-			parseJsonValueIntoMatrices(bodyParts, modelMatrices, parameters);
+			parseJsonValueIntoMatrices(bodyParts, initialTranslationMatrices, rotationMatrices, finalTranslationMatrices, scaleMatrices, parameters);
 		}
 		catch (exception e) {
 			cerr << "Exception in parsing input file - " << e.what() << endl;
@@ -106,5 +157,5 @@ Hierarchy parseJsonHierarchy(string path) {
 		exit(-1);
 	}
 	f.close();
-	return { headNode, bodyParts, adjList, modelMatrices };
+	return { headNode, bodyParts, adjList, initialTranslationMatrices, rotationMatrices, finalTranslationMatrices, scaleMatrices };
 }

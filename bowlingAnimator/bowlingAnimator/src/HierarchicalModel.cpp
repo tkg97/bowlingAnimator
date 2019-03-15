@@ -1,18 +1,22 @@
 #include "HierarchicalModel.h"
 
 void dfsTraversal(std::stack<glm::mat4> &helperStack, int currentNode, const std::vector< std::vector<int> >& adjList, 
-	const std::vector< glm::mat4 >& modelMatrices, std::vector< glm::mat4 > &outputModelMatrices) {
+	const Hierarchy& hierarchy, std::vector< glm::mat4 > &outputModelMatrices) {
 	
-	glm::mat4 currentMatrix = modelMatrices[currentNode];
+	glm::mat4 currentMatrix;
 	if (!helperStack.empty()) {
-		currentMatrix *= helperStack.top();
+		currentMatrix = helperStack.top() * hierarchy.initialTranslationMatrices[currentNode] * hierarchy.rotationMatrices[currentNode] * 
+			hierarchy.finalTranslationMatrices[currentNode];
+	}
+	else {
+		currentMatrix = hierarchy.initialTranslationMatrices[currentNode] * hierarchy.rotationMatrices[currentNode] * hierarchy.finalTranslationMatrices[currentNode];
 	}
 
 	helperStack.push(currentMatrix);
 
 	for (int i = 0;i < adjList[currentNode].size();i++) {
 		int node = adjList[currentNode][i];
-		dfsTraversal(helperStack, node, adjList, modelMatrices, outputModelMatrices);
+		dfsTraversal(helperStack, node, adjList, hierarchy, outputModelMatrices);
 	}
 
 	helperStack.pop();
@@ -20,8 +24,8 @@ void dfsTraversal(std::stack<glm::mat4> &helperStack, int currentNode, const std
 }
 
 std::vector<glm::mat4> computeModelMatrices(const Hierarchy& hierarchy) {
-	std::vector<glm::mat4> outputModelMatrices(hierarchy.modelMatrices.size());
+	std::vector<glm::mat4> outputModelMatrices(hierarchy.rotationMatrices.size());
 	std::stack<glm::mat4> helperStack;
-	dfsTraversal(helperStack, hierarchy.rootNode, hierarchy.adjList, hierarchy.modelMatrices, outputModelMatrices);
+	dfsTraversal(helperStack, hierarchy.rootNode, hierarchy.adjList, hierarchy, outputModelMatrices);
 	return outputModelMatrices;
 }
