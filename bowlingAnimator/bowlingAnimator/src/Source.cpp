@@ -80,16 +80,12 @@ int main(void)
 		std::vector<glm::mat4>::iterator iterModel = modelMatrices.begin();
 		std::vector<glm::mat4>::iterator iterScale = inputHierarchy.scaleMatrices.begin();
 
-		int count = 0;
-
 		while (iterModel != modelMatrices.end()) {
 			ModelMatrix = (*iterModel) * (*iterScale);
 			MVP = ProjectionMatrix * ViewMatrix * (ModelMatrix);
-			if(count==0) render(TextureCube, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
-			else render(TextureOther, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
+			render(TextureOther, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
 			++iterModel;
 			++iterScale;
-			count++;
 		}
 
 		glfwSwapBuffers(window);

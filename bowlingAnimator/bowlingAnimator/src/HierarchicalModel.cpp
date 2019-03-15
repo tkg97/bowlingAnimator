@@ -5,11 +5,11 @@ void dfsTraversal(std::stack<glm::mat4> &helperStack, int currentNode, const std
 	
 	glm::mat4 currentMatrix;
 	if (!helperStack.empty()) {
-		currentMatrix = helperStack.top() * hierarchy.initialTranslationMatrices[currentNode] * hierarchy.rotationMatrices[currentNode] * 
-			hierarchy.finalTranslationMatrices[currentNode];
+		currentMatrix = helperStack.top() * hierarchy.finalTranslationMatrices[currentNode] * hierarchy.rotationMatrices[currentNode] * 
+			hierarchy.initialTranslationMatrices[currentNode];
 	}
 	else {
-		currentMatrix = hierarchy.initialTranslationMatrices[currentNode] * hierarchy.rotationMatrices[currentNode] * hierarchy.finalTranslationMatrices[currentNode];
+		currentMatrix = hierarchy.finalTranslationMatrices[currentNode] * hierarchy.rotationMatrices[currentNode] * hierarchy.initialTranslationMatrices[currentNode];
 	}
 
 	helperStack.push(currentMatrix);
