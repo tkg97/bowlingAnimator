@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-struct Heirarchy {
+struct Hierarchy {
 	int rootNode;
 	std::unordered_map<std::string, int> bodyParts;
 	std::vector< std::vector<int> > adjList;
@@ -19,4 +19,4 @@ void parseJsonArrayIntoAdjList(const std::unordered_map<std::string, int>& bodyP
 
 void parseJsonValueIntoMatrices(const std::unordered_map<std::string, int>& bodyParts, std::vector<glm::mat4>& modelMatrices, const Json::Value& parameters);
 
-Heirarchy parseJsonHeirarchy(std::string path);
+Hierarchy parseJsonHierarchy(std::string path);

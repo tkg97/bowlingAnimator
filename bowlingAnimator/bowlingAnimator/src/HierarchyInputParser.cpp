@@ -1,5 +1,5 @@
 #pragma once
-#include "HeirarchyInputParser.h"
+#include "HierarchyInputParser.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <fstream>
 #include <iostream>
@@ -60,7 +60,7 @@ void parseJsonValueIntoMatrices(const unordered_map<string, int>& bodyParts, vec
 	}
 }
 
-Heirarchy parseJsonHeirarchy(string path) {
+Hierarchy parseJsonHierarchy(string path) {
 	ifstream f(path);
 
 	int headNode;
@@ -101,7 +101,7 @@ Heirarchy parseJsonHeirarchy(string path) {
 		}
 	}
 	else {
-		cerr << "Heirarchy file couldn't be parsed" << endl;
+		cerr << "Hierarchy file couldn't be parsed" << endl;
 		cin.get();
 		exit(-1);
 	}

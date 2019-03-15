@@ -3,13 +3,13 @@
 #include "common/texture.hpp"
 #include "common/objloader.hpp"
 #include "common/controls.hpp"
-#include "HeirarchyInputParser.h"
+#include "HierarchyInputParser.h"
 #include <iostream>
 #include <stack>
 
 int main(void)
 {
-	Heirarchy h = parseJsonHeirarchy("inputFiles/opengl/heirarchyInput.json");
+	Hierarchy h = parseJsonHierarchy("inputFiles/opengl/heirarchyInput.json");
 
 	if (initializeGLFW() < 0) exit(-1);
 
