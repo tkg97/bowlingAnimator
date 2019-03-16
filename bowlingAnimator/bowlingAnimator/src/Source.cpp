@@ -6,6 +6,7 @@
 #include "HierarchyInputParser.h"
 #include "HierarchicalModel.h"
 #include <iostream>
+#include <math.h>
 
 // Define global variables which can be used for rendering across transactions
 GLuint VertexArrayID;
@@ -63,6 +64,14 @@ int main(void)
 	lightPos1 = glm::vec3(0, 0, +4);
 	lightPos2 = glm::vec3(2.5, 3, -2.5);
 
+	int time = 0;
+	Hierarchy currentHierarchy = inputHierarchy;
+	float rightArmThetaX = -1.57f;
+	float torsoThetaX = 0;
+	float hipTranslateY = 0;
+	float upperLegThetaX = 0;
+	float lowerLegThetaY = 0;
+
 	do {
 
 		// Clear the screen
@@ -75,7 +84,31 @@ int main(void)
 
 		glUseProgram(programID);
 
-		std::vector<glm::mat4> modelMatrices = computeModelMatrices(inputHierarchy);
+		int nodeRightUpperArm = currentHierarchy.bodyParts["rightUpperArm"];
+		int nodeTorso = currentHierarchy.bodyParts["body"];
+		int nodeHip = currentHierarchy.bodyParts["hip"];
+		int nodeRightLowerLeg = currentHierarchy.bodyParts["rightLowerLeg"];
+		int nodeRightUpperLeg = currentHierarchy.bodyParts["rightUpperLeg"];
+		int nodeLeftLowerLeg = currentHierarchy.bodyParts["leftLowerLeg"];
+		int nodeLeftUpperLeg = currentHierarchy.bodyParts["leftUpperLeg"];
+
+		glm::mat4 tempRotationRightUpperArm, tempRotationTorso, tempRotationUpperLeg, tempRotationLowerLeg, tempTranslationHip;
+
+		tempRotationRightUpperArm = glm::rotate(tempRotationRightUpperArm, rightArmThetaX, { 1,0,0 });
+		tempRotationTorso = glm::rotate(tempRotationTorso, torsoThetaX, { 1,0,0 });
+		tempRotationLowerLeg = glm::rotate(tempRotationLowerLeg, lowerLegThetaY, { 0, 1, 0});
+		tempRotationUpperLeg = glm::rotate(tempRotationUpperLeg, upperLegThetaX, { 1,0,0 });
+		tempTranslationHip = glm::translate(tempTranslationHip, { 0,hipTranslateY,0 });
+
+		currentHierarchy.rotationMatrices[nodeRightUpperArm] = tempRotationRightUpperArm * inputHierarchy.rotationMatrices[nodeRightUpperArm];
+		currentHierarchy.rotationMatrices[nodeTorso] = tempRotationTorso * inputHierarchy.rotationMatrices[nodeTorso];
+		currentHierarchy.rotationMatrices[nodeLeftUpperLeg] = tempRotationUpperLeg * inputHierarchy.rotationMatrices[nodeLeftUpperLeg];
+		currentHierarchy.rotationMatrices[nodeRightUpperLeg] = tempRotationUpperLeg * inputHierarchy.rotationMatrices[nodeRightUpperLeg];
+		currentHierarchy.rotationMatrices[nodeLeftLowerLeg] = tempRotationLowerLeg * inputHierarchy.rotationMatrices[nodeLeftLowerLeg];
+		currentHierarchy.rotationMatrices[nodeRightLowerLeg] = tempRotationLowerLeg * inputHierarchy.rotationMatrices[nodeRightLowerLeg];
+		currentHierarchy.finalTranslationMatrices[nodeHip] = tempTranslationHip * inputHierarchy.finalTranslationMatrices[nodeHip];
+
+		std::vector<glm::mat4> modelMatrices = computeModelMatrices(currentHierarchy);
 
 		std::vector<glm::mat4>::iterator iterModel = modelMatrices.begin();
 		std::vector<glm::mat4>::iterator iterScale = inputHierarchy.scaleMatrices.begin();
@@ -90,7 +123,14 @@ int main(void)
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-
+		if (time <= 470) {
+			rightArmThetaX += 0.005;
+			torsoThetaX -= 0.0005;
+			hipTranslateY -= 0.001;
+			upperLegThetaX = acos(1 - fabs(hipTranslateY) / 2.0);
+			lowerLegThetaY = -(2 * upperLegThetaX);
+		}
+		if (time <= 1000000) time++;
 	} // Check if the ESC key was pressed or the window was closed
 	while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS &&
 		glfwWindowShouldClose(window) == 0);
