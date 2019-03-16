@@ -68,21 +68,21 @@
       "GlobalScaling": [ 1, 0.2, 0.2 ]
     },
     "body": {
-      "InitialTranslation": [ 0, 0, 0 ],
+      "InitialTranslation": [ 0, 1.1, 0 ],
       "Rotation": [ 0, 0, 0 ],
-      "FinalTranslation": [ 0, 1.1, 0 ],
+      "FinalTranslation": [ 0, 0, 0 ],
       "GlobalScaling": [ 1, 2, 0.2 ]
     },
     "shoulder": {
-      "InitialTranslation": [ 0, 0, 0 ],
+      "InitialTranslation": [ 0, 1.1, 0 ],
       "Rotation": [ 0, 0, 0 ],
-      "FinalTranslation": [ 0, 1.1, 0 ],
+      "FinalTranslation": [ 0, 0, 0 ],
       "GlobalScaling": [ 1.5, 0.2, 0.2 ]
     },
     "head": {
-      "InitialTranslation": [ 0, 0, 0 ],
+      "InitialTranslation": [ 0, 0.35, 0 ],
       "Rotation": [ 0, 0, 0 ],
-      "FinalTranslation": [ 0, 0.35, 0 ],
+      "FinalTranslation": [ 0, 0, 0 ],
       "GlobalScaling": [ 0.5, 0.5, 0.2 ]
     },
     "rightUpperArm": {
