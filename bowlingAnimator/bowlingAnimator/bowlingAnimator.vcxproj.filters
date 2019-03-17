@@ -39,10 +39,10 @@
     <ClCompile Include="src\HierarchicalModel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\HierarchyInputParser.cpp">
+    <ClCompile Include="src\openGLrendering.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\openGLrendering.cpp">
+    <ClCompile Include="src\inputParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -65,10 +65,13 @@
     <ClInclude Include="headers\HierarchicalModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="headers\HierarchyInputParser.h">
+    <ClInclude Include="headers\Hierarchy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="headers\Hierarchy.h">
+    <ClInclude Include="headers\bezier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="headers\inputParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
