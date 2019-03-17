@@ -20,9 +20,8 @@ glm::mat4 getProjectionMatrix(){
 	return ProjectionMatrix;
 }
 
-
 // Initial position : on +Z
-glm::vec3 position = glm::vec3( 0, 0, 20 ); 
+glm::vec3 position = glm::vec3( 5, 0, 20 ); 
 // Initial horizontal angle : toward +Z
 float horizontalAngle = 3.14f;
 // Initial vertical angle : none
@@ -34,7 +33,7 @@ float speed = 3.0f; // 3 units / second
 float mouseSpeed = 0.005f;
 
 void resetControls() {
-	position = glm::vec3(0, 0, 20);
+	position = glm::vec3(5, 0, 20);
 	horizontalAngle = 3.14f;
 	verticalAngle = 0.0f;
 	initialFoV = 45.0f;

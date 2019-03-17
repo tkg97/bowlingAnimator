@@ -19,6 +19,8 @@ GLuint TextureID;
 glm::mat4 ProjectionMatrix, ViewMatrix, ModelMatrix, MVP;
 glm::vec3 lightPos1, lightPos2;
 
+extern glm::vec3 position;
+
 static bool checkIfInGutter(glm::vec3 location) {
 	if ((location[0] >= -0.9 && location[0] < -0.1) || (location[0] > 2.1 && location[0] <= 2.9)) {
 		return true;
@@ -34,6 +36,7 @@ float dist(glm::vec3 point1, glm::vec3 point2) {
 float mod2pi(float angle) {
 	return angle - 2 * 3.14f * int(angle / (2 * 3.14f));
 }
+
 int main(void)
 {
 	Hierarchy inputHierarchy = parseJsonHierarchy("inputFiles/opengl/HierarchyInput.json");
@@ -126,7 +129,7 @@ int main(void)
 	float hipTranslateY = 0;
 	float upperLegThetaX = 0;
 	float lowerLegThetaY = 0;
-	float rightlowerArmThetaZ = 0;
+	float rightlowerArmThetaY = 0;
 
 	glm::mat4 modelMatrixFloor;
 	modelMatrixFloor = glm::translate(modelMatrixFloor, { 1,-2.1,-3 });
@@ -158,18 +161,13 @@ int main(void)
 
 	glm::vec3 pinCentre = {1,-1.9,-13};
 	int t = 0;
-	bool hasCollided = 0;
+	bool hasCollided = false;
 	int timeOfCollision;
 
 	do {
 
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		computeMatricesFromInputs();
-
-		ProjectionMatrix = getProjectionMatrix();
-		ViewMatrix = getViewMatrix();
 
 		glUseProgram(programID);
 
@@ -181,8 +179,9 @@ int main(void)
 		int nodeLeftLowerLeg = currentHierarchy.bodyParts["leftLowerLeg"];
 		int nodeLeftUpperLeg = currentHierarchy.bodyParts["leftUpperLeg"];
 		int nodeRightLowerArm = currentHierarchy.bodyParts["rightLowerArm"];
+		int nodeBall = currentHierarchy.bodyParts["ball"];
 
-		glm::mat4 tempRotationRightUpperArm, tempRotationTorso, tempRotationUpperLeg, tempRotationLowerLeg, tempTranslationHip, tempRotationLowerArm;
+		glm::mat4 tempRotationRightUpperArm, tempRotationTorso, tempRotationUpperLeg, tempRotationLowerLeg, tempTranslationHip, tempRotationRightLowerArm;
 
 		//tempRotationRightUpperArm = glm::rotate(tempRotationRightUpperArm, rightUpperArmThetaY, { 0,1,0 });
 		tempRotationRightUpperArm = glm::rotate(tempRotationRightUpperArm, rightUpperArmThetaX, { 1,0,0 });
@@ -190,7 +189,7 @@ int main(void)
 		tempRotationLowerLeg = glm::rotate(tempRotationLowerLeg, lowerLegThetaY, { 0, 1, 0 });
 		tempRotationUpperLeg = glm::rotate(tempRotationUpperLeg, upperLegThetaX, { 1,0,0 });
 		tempTranslationHip = glm::translate(tempTranslationHip, { 0,hipTranslateY,0 });
-		tempRotationLowerArm = glm::rotate(tempRotationLowerArm, rightlowerArmThetaZ, { 0,1,0 });
+		tempRotationRightLowerArm = glm::rotate(tempRotationRightLowerArm, rightlowerArmThetaY, { 0,1,0 });
 
 		currentHierarchy.rotationMatrices[nodeRightUpperArm] = tempRotationRightUpperArm * inputHierarchy.rotationMatrices[nodeRightUpperArm];
 		currentHierarchy.rotationMatrices[nodeTorso] = tempRotationTorso * inputHierarchy.rotationMatrices[nodeTorso];
@@ -199,10 +198,17 @@ int main(void)
 		currentHierarchy.rotationMatrices[nodeLeftLowerLeg] = tempRotationLowerLeg * inputHierarchy.rotationMatrices[nodeLeftLowerLeg];
 		currentHierarchy.rotationMatrices[nodeRightLowerLeg] = tempRotationLowerLeg * inputHierarchy.rotationMatrices[nodeRightLowerLeg];
 		currentHierarchy.finalTranslationMatrices[nodeHip] = tempTranslationHip * inputHierarchy.finalTranslationMatrices[nodeHip];
-		currentHierarchy.rotationMatrices[nodeRightLowerArm] = tempRotationLowerArm * inputHierarchy.rotationMatrices[nodeRightLowerArm];
-
+		currentHierarchy.rotationMatrices[nodeRightLowerArm] = tempRotationRightLowerArm * inputHierarchy.rotationMatrices[nodeRightLowerArm];
 
 		std::vector<glm::mat4> modelMatrices = computeModelMatrices(currentHierarchy);
+		
+		computeMatricesFromInputs();
+
+		glm::vec4 currentBallLocation = modelMatrices[nodeBall] * glm::vec4({ 0,0,0,1 });
+		position = { currentBallLocation[0], currentBallLocation[1], currentBallLocation[2] + 5 };
+
+		ProjectionMatrix = getProjectionMatrix();
+		ViewMatrix = getViewMatrix();
 
 		std::unordered_map<std::string, int>::iterator iter = currentHierarchy.bodyParts.begin();
 
@@ -225,17 +231,32 @@ int main(void)
 					currentLocation = bezierLocation(airBezierPoints, std::min((time - t1) / 130.0f * ballRate, 1.0f));
 					ModelMatrix = glm::translate(glm::mat4(1.0), currentLocation);
 					ModelMatrix = glm::rotate(ModelMatrix, -std::min((time - t1) / 130.0f * ballRate, 1.0f) * 10, { 1,0,0 }) * currentHierarchy.scaleMatrices[iter->second];
+					currentBallLocation = ModelMatrix * glm::vec4({ 0,0,0,1 });
+					position = { currentBallLocation[0], currentBallLocation[1], currentBallLocation[2] + 5 };
+					computeMatricesFromInputs();
+					ProjectionMatrix = getProjectionMatrix();
+					ViewMatrix = getViewMatrix();
 					MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 				}
 				if (time > t2) {
 					if (inGutter) {
 						if (-(time - gutterTime)*0.005 * ballRate + gutterZ <= -13) {
 							ModelMatrix = glm::translate(modelMatrixBallGutter, { 0,0, (-13-gutterZ) }) * currentHierarchy.scaleMatrices[iter->second];
+							currentBallLocation = ModelMatrix * glm::vec4({ 0,0,0,1 });
+							position = { currentBallLocation[0], currentBallLocation[1], currentBallLocation[2] + 5 };
+							computeMatricesFromInputs();
+							ProjectionMatrix = getProjectionMatrix();
+							ViewMatrix = getViewMatrix();
 							MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 						}
 						else {
 							ModelMatrix = glm::translate(modelMatrixBallGutter, { 0,0, -(time - gutterTime)*0.005 * ballRate });
 							ModelMatrix = glm::rotate(ModelMatrix, -(time - gutterTime)*0.005f * ballRate * 10, { 1,0,0 }) * currentHierarchy.scaleMatrices[iter->second];
+							currentBallLocation = ModelMatrix * glm::vec4({ 0,0,0,1 });
+							position = { currentBallLocation[0], currentBallLocation[1], currentBallLocation[2] + 5 };
+							computeMatricesFromInputs();
+							ProjectionMatrix = getProjectionMatrix();
+							ViewMatrix = getViewMatrix();
 							MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 						}
 					}
@@ -244,6 +265,11 @@ int main(void)
 							currentLocation = bezierLocation(bezierPoints, std::min((time - t2) / 300.0f * ballRate, 1.0f));
 							ModelMatrix = glm::translate(glm::mat4(1.0), currentLocation);
 							ModelMatrix = glm::rotate(ModelMatrix, -std::min((time - t2) / 300.0f*ballRate, 1.0f) * ballRate * 10, { 1,0,0 }) * currentHierarchy.scaleMatrices[iter->second];
+							currentBallLocation = ModelMatrix * glm::vec4({ 0,0,0,1 });
+							position = { currentBallLocation[0], currentBallLocation[1], currentBallLocation[2] + 5 };
+							computeMatricesFromInputs();
+							ProjectionMatrix = getProjectionMatrix();
+							ViewMatrix = getViewMatrix();
 							MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 							inGutter = checkIfInGutter(currentLocation);
 							if (inGutter) {
@@ -259,6 +285,11 @@ int main(void)
 							currentLocation = bezierLocation(bezierPoints, std::min((timeOfCollision - t2) / 300.0f * ballRate, 1.0f));
 							ModelMatrix = glm::translate(glm::mat4(1.0), currentLocation);
 							ModelMatrix = glm::rotate(ModelMatrix, -std::min((timeOfCollision - t2) / 300.0f*ballRate, 1.0f) * ballRate * 10, { 1,0,0 }) * currentHierarchy.scaleMatrices[iter->second];
+							currentBallLocation = ModelMatrix * glm::vec4({ 0,0,0,1 });
+							position = { currentBallLocation[0], currentBallLocation[1], currentBallLocation[2] + 5 };
+							computeMatricesFromInputs();
+							ProjectionMatrix = getProjectionMatrix();
+							ViewMatrix = getViewMatrix();
 							MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 							inGutter = checkIfInGutter(currentLocation);
 							if (inGutter) {
@@ -318,9 +349,6 @@ int main(void)
 			render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
 		}
 
-
-
-
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 		if (time <= t1) {
@@ -332,7 +360,7 @@ int main(void)
 		}
 		else if (time <= t2) {
 			rightUpperArmThetaX += 0.004 * bodyRate;
-			rightlowerArmThetaZ += 0.006 * bodyRate;
+			rightlowerArmThetaY += 0.006 * bodyRate;
 		}
 		if (time <= 1000000) time++;
 	} // Check if the ESC key was pressed or the window was closed
