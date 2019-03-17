@@ -55,7 +55,7 @@ void initializeOpenGL() {
 	glfwPollEvents();
 	glfwSetCursorPos(window, 1024 / 2, 768 / 2);
 
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClearColor(0.6f, 1.0f, 0.8f, 0.0f);
 
 	// Enable depth test
 	glEnable(GL_DEPTH_TEST);

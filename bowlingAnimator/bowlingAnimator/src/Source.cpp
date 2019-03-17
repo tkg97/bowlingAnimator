@@ -64,14 +64,15 @@ int main(void)
 	GLuint TextureBall = loadBMP_custom("inputFiles/Opengl/texture_ball.bmp");
 	GLuint TextureFloor = loadBMP_custom("inputFiles/Opengl/texture_floor.bmp");
 	GLuint TexturePin = loadBMP_custom("inputFiles/Opengl/texture_pin.bmp");
+	GLuint TextureSideFloor = loadBMP_custom("inputFiles/Opengl/texture_sidefloor.bmp");
 
 	// Get a handle for our "myTextureSampler" uniform
 	TextureID = glGetUniformLocation(programID, "myTextureSampler");
 
 	// Read our .obj file
-	std::vector<glm::vec3> verticesCube, verticesBall, verticesFloor,verticesPin;
-	std::vector<glm::vec2> uvsCube, uvsBall, uvsFloor, uvsPin;
-	std::vector<glm::vec3> normalsCube, normalsBall, normalsFloor, normalsPin;
+	std::vector<glm::vec3> verticesCube, verticesBall, verticesFloor, verticesPin, verticesPlane;
+	std::vector<glm::vec2> uvsCube, uvsBall, uvsFloor, uvsPin, uvsPlane;
+	std::vector<glm::vec3> normalsCube, normalsBall, normalsFloor, normalsPin, normalsPlane;
 
 	bool res = loadOBJ("inputFiles/Opengl/cube.obj", verticesCube, uvsCube, normalsCube);
 	if (!res) exit(-1);
@@ -83,6 +84,9 @@ int main(void)
 	if (!res) exit(-1);
 
 	res = loadOBJ("inputFiles/Opengl/pin.obj", verticesPin, uvsPin, normalsPin);
+	if (!res) exit(-1);
+
+	res = loadOBJ("inputFiles/Opengl/plane.obj", verticesPlane, uvsPlane, normalsPlane);
 	if (!res) exit(-1);
 
 	GLuint vertexbufferCube, uvbufferCube, normalbufferCube;
@@ -105,6 +109,13 @@ int main(void)
 	setupBuffer(uvbufferPin, (uvsPin.size() * sizeof(glm::vec2)), (&uvsPin[0]));
 	setupBuffer(normalbufferPin, (normalsPin.size() * sizeof(glm::vec3)), (&normalsPin[0]));
 
+
+	GLuint vertexbufferPlane, uvbufferPlane, normalbufferPlane;
+	setupBuffer(vertexbufferPlane, (verticesPlane.size() * sizeof(glm::vec3)), (&verticesPlane[0]));
+	setupBuffer(uvbufferPlane, (uvsPlane.size() * sizeof(glm::vec2)), (&uvsPlane[0]));
+	setupBuffer(normalbufferPlane, (normalsPlane.size() * sizeof(glm::vec3)), (&normalsPlane[0]));
+
+
 	lightPos1 = glm::vec3(4, 3, 1);
 	lightPos2 = glm::vec3(2.5, 3, -10);
 
@@ -115,19 +126,31 @@ int main(void)
 	float hipTranslateY = 0;
 	float upperLegThetaX = 0;
 	float lowerLegThetaY = 0;
+	float rightlowerArmThetaZ = 0;
 
 	glm::mat4 modelMatrixFloor;
 	modelMatrixFloor = glm::translate(modelMatrixFloor, { 1,-2.1,-3 });
 	modelMatrixFloor = glm::rotate(modelMatrixFloor, 1.57f, { 1,0,0 });
 
+	glm::mat4 modelMatrixPlane1;
+	modelMatrixPlane1 = glm::translate(modelMatrixPlane1, { -5.9,-2.1,-8 });
+	modelMatrixPlane1 = glm::scale(modelMatrixPlane1, { 10.0/14,10.0/14,10.0/14 });
+
+	glm::mat4 modelMatrixPlane2;
+	modelMatrixPlane2 = glm::translate(modelMatrixPlane2, { 7.9,-2.1,-8 });
+	modelMatrixPlane2 = glm::scale(modelMatrixPlane2, { 10.0 / 14,10.0 / 14,10.0 / 14 });
+
+	glm::mat4 modelMatrixPlane3;
+	modelMatrixPlane3 = glm::translate(modelMatrixPlane3, { 1,-2.1,8.9 });
+	modelMatrixPlane3 = glm::scale(modelMatrixPlane3, { 23.8 / 14, 23.8 / 14, 23.8 / 14 });
 
 	glm::mat4 modelMatrixBallGutter;
 	int gutterTime;
 	float gutterZ;
 	bool inGutter = false;
 
-	float ballRate = 2;
-	float bodyRate = 2;
+	float ballRate = 4;
+	float bodyRate = 4;
 
 	int t1 = 470 / bodyRate;
 	int t2 = t1 + 130 / ballRate;
@@ -157,8 +180,9 @@ int main(void)
 		int nodeRightUpperLeg = currentHierarchy.bodyParts["rightUpperLeg"];
 		int nodeLeftLowerLeg = currentHierarchy.bodyParts["leftLowerLeg"];
 		int nodeLeftUpperLeg = currentHierarchy.bodyParts["leftUpperLeg"];
+		int nodeRightLowerArm = currentHierarchy.bodyParts["rightLowerArm"];
 
-		glm::mat4 tempRotationRightUpperArm, tempRotationTorso, tempRotationUpperLeg, tempRotationLowerLeg, tempTranslationHip;
+		glm::mat4 tempRotationRightUpperArm, tempRotationTorso, tempRotationUpperLeg, tempRotationLowerLeg, tempTranslationHip, tempRotationLowerArm;
 
 		//tempRotationRightUpperArm = glm::rotate(tempRotationRightUpperArm, rightUpperArmThetaY, { 0,1,0 });
 		tempRotationRightUpperArm = glm::rotate(tempRotationRightUpperArm, rightUpperArmThetaX, { 1,0,0 });
@@ -166,6 +190,7 @@ int main(void)
 		tempRotationLowerLeg = glm::rotate(tempRotationLowerLeg, lowerLegThetaY, { 0, 1, 0 });
 		tempRotationUpperLeg = glm::rotate(tempRotationUpperLeg, upperLegThetaX, { 1,0,0 });
 		tempTranslationHip = glm::translate(tempTranslationHip, { 0,hipTranslateY,0 });
+		tempRotationLowerArm = glm::rotate(tempRotationLowerArm, rightlowerArmThetaZ, { 0,1,0 });
 
 		currentHierarchy.rotationMatrices[nodeRightUpperArm] = tempRotationRightUpperArm * inputHierarchy.rotationMatrices[nodeRightUpperArm];
 		currentHierarchy.rotationMatrices[nodeTorso] = tempRotationTorso * inputHierarchy.rotationMatrices[nodeTorso];
@@ -174,6 +199,8 @@ int main(void)
 		currentHierarchy.rotationMatrices[nodeLeftLowerLeg] = tempRotationLowerLeg * inputHierarchy.rotationMatrices[nodeLeftLowerLeg];
 		currentHierarchy.rotationMatrices[nodeRightLowerLeg] = tempRotationLowerLeg * inputHierarchy.rotationMatrices[nodeRightLowerLeg];
 		currentHierarchy.finalTranslationMatrices[nodeHip] = tempTranslationHip * inputHierarchy.finalTranslationMatrices[nodeHip];
+		currentHierarchy.rotationMatrices[nodeRightLowerArm] = tempRotationLowerArm * inputHierarchy.rotationMatrices[nodeRightLowerArm];
+
 
 		std::vector<glm::mat4> modelMatrices = computeModelMatrices(currentHierarchy);
 
@@ -255,20 +282,34 @@ int main(void)
 		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 		render(TextureFloor, vertexbufferFloor, uvbufferFloor, normalbufferFloor, verticesFloor.size());
 
-		
+		ModelMatrix = modelMatrixPlane1;
+		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+		render(TextureSideFloor, vertexbufferPlane, uvbufferPlane, normalbufferPlane, verticesPlane.size());
+
+		ModelMatrix = modelMatrixPlane2;
+		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+		render(TextureSideFloor, vertexbufferPlane, uvbufferPlane, normalbufferPlane, verticesPlane.size());
+
+		ModelMatrix = modelMatrixPlane3;
+		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+		render(TextureSideFloor, vertexbufferPlane, uvbufferPlane, normalbufferPlane, verticesPlane.size());
+
 		glm::mat4 modelMatrixPin;
 		modelMatrixPin = glm::translate(modelMatrixPin, pinCentre);
 		//modelMatrixPin = glm::rotate(modelMatrixPin, 1.57f, { 1,0,0 });
 		if (dist(currentLocation, pinCentre) <= 0.6) {
 			hasCollided = 1;
-			if (t == 0) timeOfCollision = time;
-			float angle = -t * 1.57f*0.012f;
-			modelMatrixPin = glm::translate(modelMatrixPin, { 0,-0.0,0 });
-			modelMatrixPin = glm::rotate(modelMatrixPin, angle, {0,0,1});
+			glm::vec3 directionOfDrop = pinCentre - currentLocation;
+			directionOfDrop = glm::normalize(directionOfDrop);
+			glm::vec3 axisOfRotation = glm::cross(directionOfDrop, {0,1,0});
+ 			if (t == 0) timeOfCollision = time;
+			float angle = -t * 1.57f*0.006f*ballRate;
+			modelMatrixPin = glm::translate(modelMatrixPin, { t * 0.005f * directionOfDrop[0], t*0.00001f + t * 0.005f * directionOfDrop[1],t * 0.005f * directionOfDrop[2] });
+			modelMatrixPin = glm::rotate(modelMatrixPin, angle, axisOfRotation);
 			modelMatrixPin = glm::translate(modelMatrixPin, {0,0.0,0});
 			ModelMatrix = modelMatrixPin;
 			MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		    if(t<50) t++;
+		    if(t<190/ballRate) t++;
 			render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
 		}
 		else {
@@ -291,6 +332,7 @@ int main(void)
 		}
 		else if (time <= t2) {
 			rightUpperArmThetaX += 0.004 * bodyRate;
+			rightlowerArmThetaZ += 0.006 * bodyRate;
 		}
 		if (time <= 1000000) time++;
 	} // Check if the ESC key was pressed or the window was closed
