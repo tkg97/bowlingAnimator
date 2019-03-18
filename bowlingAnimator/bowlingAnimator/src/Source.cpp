@@ -72,6 +72,9 @@ int main(void)
 	GLuint TextureFloor = loadBMP_custom("inputFiles/Opengl/texture_floor.bmp");
 	GLuint TexturePin = loadBMP_custom("inputFiles/Opengl/texture_pin.bmp");
 	GLuint TextureSideFloor = loadBMP_custom("inputFiles/Opengl/texture_sidefloor.bmp");
+	GLuint TextureShirt = loadBMP_custom("inputFiles/Opengl/texture_pant1.bmp");
+	GLuint TexturePant = loadBMP_custom("inputFiles/Opengl/texture_pant.bmp");
+
 
 	// Get a handle for our "myTextureSampler" uniform
 	TextureID = glGetUniformLocation(programID, "myTextureSampler");
@@ -154,8 +157,8 @@ int main(void)
 	float gutterZ;
 	bool inGutter = false;
 
-	float ballRate = 4;
-	float bodyRate = 4;
+	float ballRate = 2;
+	float bodyRate = 2;
 
 	int t1 = 470 / bodyRate;
 	int t2 = t1 + 130 / ballRate;
@@ -282,6 +285,8 @@ int main(void)
 				}
 				render(TextureBall, vertexbufferBall, uvbufferBall, normalbufferBall, verticesBall.size());
 			}
+			else if(iter->first == "body" || iter->first == "shoulder" || iter->first=="rightUpperArm" || iter->first=="leftUpperArm") render(TextureShirt, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
+			else if(iter->first == "hip" || iter->first == "leftUpperLeg" || iter->first == "rightUpperLeg" )  render(TexturePant, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
 			else render(TextureCube, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
 			++iter++;
 		}
