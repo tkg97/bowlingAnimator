@@ -8,6 +8,7 @@
 #include "bezier.h"
 #include <iostream>
 #include <algorithm>
+#include <vector>
 #include <math.h>
 
 // Define global variables which can be used for rendering across transactions
@@ -40,6 +41,103 @@ static void updateView(const glm::mat4 &modelMatrix, bool initial) {
 	if (!initial) computeMatricesFromInputs();
 	ProjectionMatrix = getProjectionMatrix();
 	ViewMatrix = getViewMatrix();
+}
+
+static double pinRotationAngle;
+static glm::vec3 pinCentre[10] = { { 1,-1.89,-12 }, {0.75,-1.89,-12.25},{1.25,-1.89,-12.25},{0.5,-1.89,-12.5},{1,-1.89,-12.5},
+								{1.5,-1.89,-12.5},{0.25,-1.89,-12.75},{0.75,-1.89,-12.75},{1.25,-1.89,-12.75},{1.75,-1.89,-12.75} };
+
+static glm::vec3 pinBaseCentre[10] = { { 1,-2.1,-12 }, {0.75,-2.1,-12.25},{1.25,-2.1,-12.25},{0.5,-2.1,-12.5},{1,-2.1,-12.5},
+								{1.5,-2.1,-12.5},{0.25,-2.1,-12.75},{0.75,-2.1,-12.75},{1.25,-2.1,-12.75},{1.75,-2.1,-12.75} };
+
+static int time = 0;
+
+static float radiusPin = 0.06f;
+static float radiusBall = 0.2f;
+
+struct CollisionData {
+	int timeOfCollision;
+	glm::vec3 steadyBodyDirection;
+	glm::vec3 movingBodyDirection;
+};
+
+struct FallData {
+	int timeOfFall;
+	int timeOfChange;
+	int amountFallTime;
+	glm::vec3 initialFallDirection; // before colliding with any other pin
+	glm::vec3 finalFallDirection; // after colliding with any other pin // For now only one collision is assumed to be possible
+	glm::vec3 fallDirection(int currentTime) {
+		return (currentTime <= timeOfChange) ? (initialFallDirection) : (finalFallDirection);
+	}
+};
+
+static std::vector<FallData> fallingPins; // We will keep updating this as time goes
+
+static glm::vec3 ballDirection, lastBallLocation;
+
+// This function returns the time after which the collision happens if it is feasible 
+// Make sure the direction is normalized always
+static CollisionData ccCollision(glm::vec3 cylinderSteady, glm::vec3 cylinderRotating, glm::vec3 rotationDirection, double radius, double height) {
+	glm::vec3 centerDirection = glm::normalize(cylinderSteady - cylinderRotating);
+	double centerDistance = dist(cylinderSteady, cylinderRotating);
+	float tangentAngle = asin((2 * radius) / centerDistance);
+	double angleWithCentreDirection = acos(glm::dot(rotationDirection, centerDirection));
+	if (angleWithCentreDirection > tangentAngle) return { INT_MAX, { 0,0,0 }, rotationDirection };
+	float sign = (glm::dot({ 0,1,0 }, glm::cross(centerDirection, rotationDirection)) < 0) ? -1 : 1;
+	glm::vec3 tangentDirection = glm::vec3(glm::rotate(glm::mat4(), (sign)*tangentAngle, { 0,1,0 }) * glm::vec4(centerDirection, 0.0f));
+	glm::vec3 inwardNormalDirection = glm::vec3(glm::rotate(glm::mat4(), (sign) * -1.57f, { 0,1,0 }) * glm::vec4(centerDirection, 0.0f));
+	float phi = asin(height / (sqrt(height * height + radius * radius)));
+	float sumThetaStraightPhi = asin((centerDistance - radius) / (sqrt(height * height + radius * radius)));
+	float thetaStraight = (sumThetaStraightPhi - phi < 0) ? (3.14f - sumThetaStraightPhi - phi) : (sumThetaStraightPhi - phi);
+	if (isnan(thetaStraight)) return { INT_MAX, {0,0,0}, rotationDirection };
+	float sumThetaTangentPhi = asin((centerDistance - radius) / (cos(tangentAngle) * (sqrt(height * height + radius * radius))));
+	float thetaTangent =  (sumThetaTangentPhi - phi <0) ? (3.14f - sumThetaTangentPhi - phi) : (sumThetaTangentPhi - phi);
+	float angleActual = acos(glm::dot(centerDirection, rotationDirection));
+	if (isnan(thetaTangent)) {
+		if (angleActual > (tangentAngle) / 2.0f) return { INT_MAX, {0,0,0}, rotationDirection };
+		else {
+			int t = (1.57f - thetaStraight) / (pinRotationAngle);
+			return { t, centerDirection, tangentDirection };
+		}
+	}
+	else {
+		// we will consider the linear combinations with the weightage corresponding to this thetaActual
+		double combinedTheta = ((tangentAngle - angleActual) * thetaStraight + (angleActual)* thetaTangent) / tangentAngle;
+		int t = (1.57f - combinedTheta) / (pinRotationAngle);
+		glm::vec3 steadyBodyDirection = glm::normalize(((tangentAngle - angleActual) * centerDirection + (angleActual)* tangentDirection) / tangentAngle);
+		return { t, steadyBodyDirection, tangentDirection };
+	}
+}
+
+static CollisionData cbCollision(glm::vec3 cylinderSteady, glm::vec3 ball) {
+	glm::vec3 directionOfDrop = cylinderSteady - ball;
+	directionOfDrop = glm::normalize(directionOfDrop);
+	float angle = acos(glm::dot(directionOfDrop, { 0,0,-1 }));
+	glm::vec3 directionReact = glm::vec3(glm::rotate(glm::mat4(), (directionOfDrop[0] >= 0) ? angle : angle, { 0,1,0 }) * glm::vec4({ 0, 0, -1, 0 }));
+	return { 0, directionOfDrop, directionReact };
+}
+
+void checkPossibleCollisions(int index) {
+	int tfall = INT_MAX;
+	int id;
+	CollisionData finalCD;
+	for (int i = 0;i < 10;i++) {
+		if (i == index) continue;
+		if (fallingPins[i].timeOfFall < time) continue;
+		CollisionData cd = ccCollision(pinBaseCentre[i], pinBaseCentre[index], fallingPins[index].fallDirection(time), radiusPin, 0.63);
+		if (tfall > cd.timeOfCollision) {
+			tfall = cd.timeOfCollision;
+			finalCD = cd;
+			id = i;
+		}
+	}
+	if (tfall != INT_MAX && fallingPins[id].timeOfFall > finalCD.timeOfCollision + time) {
+		fallingPins[id].timeOfFall = finalCD.timeOfCollision + time;
+		fallingPins[id].initialFallDirection = finalCD.steadyBodyDirection;
+		fallingPins[index].timeOfChange = finalCD.timeOfCollision + fallingPins[index].timeOfFall;
+		fallingPins[index].finalFallDirection = finalCD.movingBodyDirection;
+	}
 }
 
 int main(void)
@@ -127,7 +225,6 @@ int main(void)
 	lightPos1 = glm::vec3(4, 3, 1);
 	lightPos2 = glm::vec3(2.5, 3, -10);
 
-	int time = 0;
 	Hierarchy currentHierarchy = inputHierarchy;
 	float rightUpperArmThetaX = -1.57f;
 	float torsoThetaX = 0;
@@ -157,16 +254,21 @@ int main(void)
 	float gutterZ;
 	bool inGutter = false;
 
-	float ballRate = 2;
-	float bodyRate = 2;
+	float ballRate = 1;
+	float bodyRate = 1;
+
 
 	int t1 = 470 / bodyRate;
 	int t2 = t1 + 130 / ballRate;
 	int t3;
 
-	glm::vec3 pinCentre[10] = { { 1,-1.9,-12 }, {0.75,-1.9,-12.25},{1.25,-1.9,-12.25},{0.5,-1.9,-12.5},{1,-1.9,-12.5},{1.5,-1.9,-12.5},{0.25,-1.9,-12.75},{0.75,-1.9,-12.75},{1.25,-1.9,-12.75},{1.75,-1.9,-12.75} };
-	
-	int t = 0;
+	fallingPins.clear();
+	pinRotationAngle = 1.57f * 0.006f * ballRate;
+
+	for (int i = 0;i < 10;i++) {
+		fallingPins.push_back({ INT_MAX, INT_MAX, 0, {0,0,0}, {0,0,0} });
+	}
+
 	bool hasCollided = false;
 	int timeOfCollision;
 
@@ -266,9 +368,9 @@ int main(void)
 							}
 						}
 						else {
-							currentLocation = bezierLocation(bezierPoints, std::min((timeOfCollision - t2) / 300.0f * ballRate, 1.0f));
+							currentLocation = lastBallLocation + ballDirection * (float)(time - timeOfCollision) * ballRate / 300.0f; // edit rate
 							ModelMatrix = glm::translate(glm::mat4(1.0), currentLocation);
-							ModelMatrix = glm::rotate(ModelMatrix, -std::min((timeOfCollision - t2) / 300.0f*ballRate, 1.0f) * ballRate * 10, { 1,0,0 }) * currentHierarchy.scaleMatrices[iter->second];
+							ModelMatrix = glm::rotate(ModelMatrix, -std::min((time - t2) / 300.0f*ballRate, 1.0f) * ballRate * 10, { 1,0,0 }) * currentHierarchy.scaleMatrices[iter->second];
 							//updateView(ModelMatrix, false);
 							MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 							inGutter = checkIfInGutter(currentLocation);
@@ -285,8 +387,8 @@ int main(void)
 				}
 				render(TextureBall, vertexbufferBall, uvbufferBall, normalbufferBall, verticesBall.size());
 			}
-			else if(iter->first == "body" || iter->first == "shoulder" || iter->first=="rightUpperArm" || iter->first=="leftUpperArm") render(TextureShirt, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
-			else if(iter->first == "hip" || iter->first == "leftUpperLeg" || iter->first == "rightUpperLeg" )  render(TexturePant, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
+			else if (iter->first == "body" || iter->first == "shoulder" || iter->first == "rightUpperArm" || iter->first == "leftUpperArm") render(TextureShirt, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
+			else if (iter->first == "hip" || iter->first == "leftUpperLeg" || iter->first == "rightUpperLeg")  render(TexturePant, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
 			else render(TextureCube, vertexbufferCube, uvbufferCube, normalbufferCube, verticesCube.size());
 			++iter++;
 		}
@@ -307,95 +409,35 @@ int main(void)
 		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 		render(TextureSideFloor, vertexbufferPlane, uvbufferPlane, normalbufferPlane, verticesPlane.size());
 
+		// Now render pins
 		glm::mat4 modelMatrixPin[10];
-		modelMatrixPin[0] = glm::translate(modelMatrixPin[0], pinCentre[0]);
-		//modelMatrixPin = glm::rotate(modelMatrixPin, 1.57f, { 1,0,0 });
-		if (dist(currentLocation, pinCentre[0]) <= 0.4) {
-			hasCollided = 1;
-			glm::vec3 directionOfDrop = pinCentre[0] - currentLocation;
-			directionOfDrop = glm::normalize(directionOfDrop);
-			glm::vec3 axisOfRotation = glm::cross(directionOfDrop, { 0,1,0 });
-			if (t == 0) timeOfCollision = time;
-			float angle = -t * 1.57f*0.006f*ballRate;
-			//modelMatrixPin = glm::translate(modelMatrixPin, { t * 0.005f * directionOfDrop[0], t*0.00001f + t * 0.005f * directionOfDrop[1],t * 0.005f * directionOfDrop[2] });
-			modelMatrixPin[0] = glm::rotate(modelMatrixPin[0], angle, axisOfRotation);
-			modelMatrixPin[0] = glm::translate(modelMatrixPin[0], { 0,0.0,0 });
-			modelMatrixPin[0] = glm::scale(modelMatrixPin[0], { 0.5, 1 ,1 });
-			ModelMatrix = modelMatrixPin[0];
+
+		for (int i = 0;i < 10;i++) {
+			modelMatrixPin[i] = glm::translate(modelMatrixPin[i], pinCentre[i]);
+			if (time >= fallingPins[i].timeOfFall) {
+				if (fallingPins[i].amountFallTime == 0) checkPossibleCollisions(i);
+				glm::vec3 axisOfRotation = glm::cross(fallingPins[i].fallDirection(time), { 0,1,0 });
+				float angle = -fallingPins[i].amountFallTime * pinRotationAngle;
+				modelMatrixPin[i] = glm::rotate(modelMatrixPin[i], angle, axisOfRotation);
+				if (fallingPins[i].amountFallTime < 190 / ballRate) fallingPins[i].amountFallTime++;
+			}
+			else {
+				if (fallingPins[i].timeOfFall == INT_MAX && dist(pinCentre[i], currentLocation) <= radiusBall + radiusPin) {
+					hasCollided = true;
+					timeOfCollision = time;
+					lastBallLocation = currentLocation;
+					CollisionData cd = cbCollision(pinCentre[i], currentLocation);
+					fallingPins[i].timeOfFall = time;
+					fallingPins[i].initialFallDirection = cd.steadyBodyDirection;
+					ballDirection = cd.movingBodyDirection;
+					checkPossibleCollisions(i);
+				}
+			}
+			modelMatrixPin[i] = glm::scale(modelMatrixPin[i], { 0.3, 1 ,0.3 });
+			ModelMatrix = modelMatrixPin[i];
 			MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-			if (t < 190 / ballRate) t++;
 			render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
 		}
-		else {
-			modelMatrixPin[0] = glm::scale(modelMatrixPin[0], { 0.5, 1 ,1 });
-			ModelMatrix = modelMatrixPin[0];
-			MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-			render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-		}
-
-		//pin 2
-		modelMatrixPin[1] = glm::translate(modelMatrixPin[1], pinCentre[1]);
-		modelMatrixPin[1] = glm::scale(modelMatrixPin[1], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[1];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 3
-		modelMatrixPin[2] = glm::translate(modelMatrixPin[2], pinCentre[2]);
-		modelMatrixPin[2] = glm::scale(modelMatrixPin[2], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[2];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-
-		//pin 4
-		modelMatrixPin[3] = glm::translate(modelMatrixPin[3], pinCentre[3]);
-		modelMatrixPin[3] = glm::scale(modelMatrixPin[3], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[3];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 5
-		modelMatrixPin[4] = glm::translate(modelMatrixPin[4], pinCentre[4]);
-		modelMatrixPin[4] = glm::scale(modelMatrixPin[4], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[4];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 6
-		modelMatrixPin[5] = glm::translate(modelMatrixPin[5], pinCentre[5]);
-		modelMatrixPin[5] = glm::scale(modelMatrixPin[5], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[5];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 7
-		modelMatrixPin[6] = glm::translate(modelMatrixPin[6], pinCentre[6]);
-		modelMatrixPin[6] = glm::scale(modelMatrixPin[6], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[6];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 8
-		modelMatrixPin[7] = glm::translate(modelMatrixPin[7], pinCentre[7]);
-		modelMatrixPin[7] = glm::scale(modelMatrixPin[7], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[7];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 9
-		modelMatrixPin[8] = glm::translate(modelMatrixPin[8], pinCentre[8]);
-		modelMatrixPin[8] = glm::scale(modelMatrixPin[8], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[8];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
-
-		//pin 10
-		modelMatrixPin[9] = glm::translate(modelMatrixPin[9], pinCentre[9]);
-		modelMatrixPin[9] = glm::scale(modelMatrixPin[9], { 0.5, 1 ,1 });
-		ModelMatrix = modelMatrixPin[9];
-		MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-		render(TexturePin, vertexbufferPin, uvbufferPin, normalbufferPin, verticesPin.size());
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
