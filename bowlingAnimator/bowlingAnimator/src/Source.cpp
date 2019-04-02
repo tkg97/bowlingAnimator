@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <vector>
 #include <math.h>
+#include <irrKlang.h>
 
 // Define global variables which can be used for rendering across transactions
 GLuint VertexArrayID;
@@ -19,6 +20,8 @@ GLuint LightID1, LightID2;
 GLuint TextureID;
 glm::mat4 ProjectionMatrix, ViewMatrix, ModelMatrix, MVP;
 glm::vec3 lightPos1, lightPos2;
+
+irrklang::ISoundEngine *SoundEngine = irrklang::createIrrKlangDevice();
 
 extern glm::vec3 position;
 
@@ -37,7 +40,7 @@ static float dist(glm::vec3 point1, glm::vec3 point2) {
 static void updateView(const glm::mat4 &modelMatrix, bool initial) {
 	if (initial) computeMatricesFromInputs();
     glm::vec4 currentBallLocation = modelMatrix * glm::vec4({ 0,0,0,1 });
-	position = { currentBallLocation[0], currentBallLocation[1]+0.15, currentBallLocation[2] + 8 };
+	position = { currentBallLocation[0], currentBallLocation[1]+2.15, currentBallLocation[2] + 8 };
 	if (!initial) computeMatricesFromInputs();
 	ProjectionMatrix = getProjectionMatrix();
 	ViewMatrix = getViewMatrix();
@@ -272,22 +275,33 @@ int main(void)
 	bool hasCollided = false;
 	int timeOfCollision;
 
-	do {
+	std::vector<glm::mat4> modelMatricesTEMP = computeModelMatrices(currentHierarchy);
+	int nodeRightUpperArm = currentHierarchy.bodyParts["rightUpperArm"];
+	int nodeTorso = currentHierarchy.bodyParts["body"];
+	int nodeHip = currentHierarchy.bodyParts["hip"];
+	int nodeRightLowerLeg = currentHierarchy.bodyParts["rightLowerLeg"];
+	int nodeRightUpperLeg = currentHierarchy.bodyParts["rightUpperLeg"];
+	int nodeLeftLowerLeg = currentHierarchy.bodyParts["leftLowerLeg"];
+	int nodeLeftUpperLeg = currentHierarchy.bodyParts["leftUpperLeg"];
+	int nodeRightLowerArm = currentHierarchy.bodyParts["rightLowerArm"];
+	int nodeBall = currentHierarchy.bodyParts["ball"];
 
+	SoundEngine->play2D("inputFiles/Opengl/solid.wav", GL_FALSE);
+	SoundEngine->stopAllSounds();
+
+	glm::vec4 currentBallLocation = modelMatricesTEMP[nodeBall] * glm::vec4({ 0,0,0,1 });
+	position = { currentBallLocation[0], currentBallLocation[1] + 2.15, currentBallLocation[2] + 8 };
+	computeMatricesFromInputs();
+	ProjectionMatrix = getProjectionMatrix();
+	ViewMatrix = getViewMatrix();
+	
+	do {
+		
+		
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glUseProgram(programID);
-
-		int nodeRightUpperArm = currentHierarchy.bodyParts["rightUpperArm"];
-		int nodeTorso = currentHierarchy.bodyParts["body"];
-		int nodeHip = currentHierarchy.bodyParts["hip"];
-		int nodeRightLowerLeg = currentHierarchy.bodyParts["rightLowerLeg"];
-		int nodeRightUpperLeg = currentHierarchy.bodyParts["rightUpperLeg"];
-		int nodeLeftLowerLeg = currentHierarchy.bodyParts["leftLowerLeg"];
-		int nodeLeftUpperLeg = currentHierarchy.bodyParts["leftUpperLeg"];
-		int nodeRightLowerArm = currentHierarchy.bodyParts["rightLowerArm"];
-		int nodeBall = currentHierarchy.bodyParts["ball"];
 
 		glm::mat4 tempRotationRightUpperArm, tempRotationTorso, tempRotationUpperLeg, tempRotationLowerLeg, tempTranslationHip, tempRotationRightLowerArm;
 
@@ -415,7 +429,10 @@ int main(void)
 		for (int i = 0;i < 10;i++) {
 			modelMatrixPin[i] = glm::translate(modelMatrixPin[i], pinCentre[i]);
 			if (time >= fallingPins[i].timeOfFall) {
-				if (fallingPins[i].amountFallTime == 0) checkPossibleCollisions(i);
+				if (fallingPins[i].amountFallTime == 0) {
+					SoundEngine->play2D("inputFiles/Opengl/solid.wav", GL_FALSE);
+					checkPossibleCollisions(i);
+				}
 				glm::vec3 axisOfRotation = glm::cross(fallingPins[i].fallDirection(time), { 0,1,0 });
 				float angle = -fallingPins[i].amountFallTime * pinRotationAngle;
 				modelMatrixPin[i] = glm::translate(modelMatrixPin[i], {fallingPins[i].fallDirection(time)[0]*0.05f, -0.21, fallingPins[i].fallDirection(time)[2] * 0.05f });
